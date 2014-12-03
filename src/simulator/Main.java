@@ -14,13 +14,15 @@ import org.lwjgl.opengl.GL11;
 
 public class Main implements Runnable {
 	
-	Body b, c;
-	double scale = 1, timeScale = 1;
+	Body sun, earth;
+	double scale = 0.000000001, timeScale = 5;
 	double xcam, ycam;
+	double seconds = 0;
 	
 	protected void init() {
-		b = new Body(500, 400, 0.05, 0, 1, 5);
-		c = new Body(400, 320, -0.05, -0, 1, 5);
+		sun = new Body(0, 0, 0, 0, 1.98855 * Math.pow(10, 30), 696342000);
+		earth = new Body(152098232000.0, 0, 0, 29780, 5.97219 * Math.pow(10, 24), 6371000);
+		
 	}
 	
 	protected void update(double dt) {
@@ -29,59 +31,60 @@ public class Main implements Runnable {
 			timeScale *= 1.0001;
 			
 		}
-		double scalespd = 1.0005;
+		double scalespd = 1.0001;
 		if (Keyboard.isKeyDown(Keyboard.KEY_I)) {
 			double newScale = scale / scalespd;
-			xcam -= width*(1 - newScale / scale)*scale/2;
-			ycam -= height*(1 - newScale / scale)*scale/2;
+			xcam -= width * (1 - newScale / scale) * scale / 2;
+			ycam -= height * (1 - newScale / scale) * scale / 2;
 			scale = newScale;
 		}
 		if (Keyboard.isKeyDown(Keyboard.KEY_O)) {
 			double newScale = scale * scalespd;
-			xcam -= width*(1 - newScale / scale)*scale/2;
-			ycam -= height*(1 - newScale / scale)*scale/2;
+			xcam -= width * (1 - newScale / scale) * scale / 2;
+			ycam -= height * (1 - newScale / scale) * scale / 2;
 			scale = newScale;
 		}
 		
+		double camspd = 200;
 		if (Keyboard.isKeyDown(Keyboard.KEY_DOWN)) {
-			ycam += dt * 100 / scale;
+			ycam += dt * camspd;
 		}
 		if (Keyboard.isKeyDown(Keyboard.KEY_UP)) {
-			ycam -= dt * 100 / scale;
+			ycam -= dt * camspd;
 		}
 		if (Keyboard.isKeyDown(Keyboard.KEY_LEFT)) {
-			xcam -= dt * 100 / scale;
+			xcam -= dt * camspd;
 		}
 		if (Keyboard.isKeyDown(Keyboard.KEY_RIGHT)) {
-			xcam += dt * 100 / scale;
+			xcam += dt * camspd;
 		}
-		System.out.println();
-		System.out.println(xcam);
-		System.out.println(ycam);
-		// b.update(timeScale);
-		// c.update(timeScale);
-		double dx = b.x - c.x;
-		double dy = b.y - c.y;
+		
+		// System.out.println();
+		sun.update(timeScale);
+		earth.update(timeScale);
+		double dx = sun.x - earth.x;
+		double dy = sun.y - earth.y;
 		double distance = Math.sqrt(dx * dx + dy * dy);
 		double angle = Math.atan2(dy, dx);
 		double g = 0.0000000000666666667;
-		double force = b.mass * c.mass / (distance * distance);
-		b.xspd -= timeScale * Math.cos(angle) * force / b.mass;
-		b.yspd -= timeScale * Math.sin(angle) * force / b.mass;
-		c.xspd += timeScale * Math.cos(angle) * force / c.mass;
-		c.yspd += timeScale * Math.sin(angle) * force / c.mass;
+		double force = g * sun.mass * earth.mass / (distance * distance);
+		sun.xspd -= timeScale * Math.cos(angle) * force / sun.mass;
+		sun.yspd -= timeScale * Math.sin(angle) * force / sun.mass;
+		earth.xspd += timeScale * Math.cos(angle) * force / earth.mass;
+		earth.yspd += timeScale * Math.sin(angle) * force / earth.mass;
 		
+		seconds += timeScale;
 	}
 	
 	protected void render() {
-		b.render((int) xcam, (int) ycam, scale);
-		c.render((int) xcam, (int) ycam, scale);
+		sun.render((int) xcam, (int) ycam, scale);
+		earth.render((int) xcam, (int) ycam, scale);
 	}
 	
 	public void run() {
 		if (!(width > 0 && height > 0)) {
-			width = 800;
-			height = 640;
+			width = 1720;
+			height = 900;
 		}
 		glinit(width, height);
 		init();
@@ -111,7 +114,8 @@ public class Main implements Runnable {
 			
 			if (getTime() - timer > 1) {
 				timer += 1;
-				Display.setTitle("updates: " + this.updates + " | ups: " + updates + " | delta: " + delta);
+				double days = seconds / 86400;
+				Display.setTitle("updates: " + this.updates + " | ups: " + updates + " | Dayspassed: " + (long)days + " | Timescale: " + timeScale);
 				updates = 0;
 				
 			}
