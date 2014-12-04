@@ -25,35 +25,36 @@ public class Body {
 	}
 	
 	public void update(double timeScale) {
-		System.out.println(xspd);
 		x += xspd * timeScale;
 		y += yspd * timeScale;
 	}
 	
 	public void render(int xoffset, int yoffset, double scale) {
+		
 		double xd = xoffset;
 		double yd = yoffset;
-		GL11.glColor3d(1, 1, 1);
-		GL11.glBegin(GL11.GL_POLYGON);
-		double displayx = 0;
-		double displayy = 0;
-		double sizelimit = 2;
-		if (circlePoints[0][0] * scale < sizelimit) {
-			double length = circlePoints[0].length;
-			for (int i = 0; i < circlePoints[0].length; i++) {
-				double index = i;
-				double xdraw = scale * (x) + sizelimit * Math.cos(index * 2.0 * Math.PI / length) - xd;
-				double ydraw = scale * (y) + sizelimit * Math.sin(index * 2.0 * Math.PI / length) - yd;
-				GL11.glVertex2d(xdraw, ydraw);
+		if (!((x + radius) * scale - xd < 0 || (y + radius) * scale - yd < 0 || (x - radius) * scale - xd > Display.getWidth() || (y - radius) * scale - yd > Display.getHeight())) {
+			GL11.glColor3d(1, 1, 1);
+			GL11.glBegin(GL11.GL_POLYGON);
+			double sizelimit = 2;
+			
+			if (circlePoints[0][0] * scale < sizelimit) {
+				double length = circlePoints[0].length;
+				for (int i = 0; i < circlePoints[0].length; i++) {
+					double index = i;
+					double xdraw = scale * (x) + sizelimit * Math.cos(index * 2.0 * Math.PI / length) - xd;
+					double ydraw = scale * (y) + sizelimit * Math.sin(index * 2.0 * Math.PI / length) - yd;
+					GL11.glVertex2d(xdraw, ydraw);
+				}
+			} else {
+				for (int i = 0; i < circlePoints[0].length; i++) {
+					double xdraw = scale * (circlePoints[0][i] + x) - xd;
+					double ydraw = scale * (circlePoints[1][i] + y) - yd;
+					GL11.glVertex2d(xdraw, ydraw);
+				}
 			}
-		} else {
-			for (int i = 0; i < circlePoints[0].length; i++) {
-				double xdraw = scale * (circlePoints[0][i] + x) - xd;
-				double ydraw = scale * (circlePoints[1][i] + y) - yd;
-				GL11.glVertex2d(xdraw, ydraw);
-			}
+			GL11.glEnd();
 		}
-		GL11.glEnd();
 	}
 	
 	public void setCirclePoints() {
