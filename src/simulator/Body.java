@@ -25,6 +25,7 @@ public class Body {
 	}
 	
 	public void update(double timeScale) {
+		System.out.println(xspd);
 		x += xspd * timeScale;
 		y += yspd * timeScale;
 	}
