@@ -15,45 +15,56 @@ import org.lwjgl.opengl.GL11;
 public class Main implements Runnable {
 	
 	Body[] bodies;
-	int followID = 5;
+	int followID = 3;
 	int mousex, mousey;
 	double scale = 0.000000001, timeScale = 1, oldTimeScale = timeScale;
 	double xcam = -Display.getWidth() / 2, ycam = -Display.getHeight() / 2;
 	double seconds = 0;
 	
-	boolean paused = false;
+	boolean paused = true;
 	
 	protected void init() {
 		xcam = -Display.getWidth() / 2;
 		ycam = -Display.getHeight() / 2;
 		bodies = new Body[8];
+		// Sun
 		bodies[0] = (new Body(0, 0, 0, 0, 1.98855 * Math.pow(10, 30), 696342000));
+		// Mercury
 		bodies[1] = (new Body(57909050000.0, 0, 0, 47362, 0.33022 * Math.pow(10, 24), 2439700));
+		// Venus
 		bodies[2] = (new Body(0, 108200000000.0, -35000, 0, 4.87 * Math.pow(10, 24), 6052000));
 		
+		// Earth
 		bodies[3] = (new Body(-152098232000.0, 0, 0, -29780, 5.97219 * Math.pow(10, 24), 6371000));
+		// Moon
 		bodies[4] = (new Body(-152098232000.0 - 384399000, 0, 0, -29780 - 1022, 7.3477 * Math.pow(10, 22), 1737100));
 		
+		// Mars
 		bodies[5] = (new Body(0, -227939100000.0, 24077, 0, 0.642 * Math.pow(10, 24), 338950));
+		// Demos
 		bodies[6] = (new Body(0, -227939100000.0 - 9376000, 24077 + 2138, 0, 1.0659 * Math.pow(10, 16), 11266.7));
+		// Phobos
 		bodies[7] = (new Body(0, -227939100000.0 + 23463200, 24077 - 1351.3, 0, 1.4762 * Math.pow(10, 15), 6200));
 	}
 	
 	protected void update(double dt) {
+		paused = Keyboard.isKeyDown(Keyboard.KEY_SPACE);
 		
-		if (Keyboard.isKeyDown(Keyboard.KEY_SPACE))
-			paused = !paused;
-		if (paused) {
-			timeScale = 0;
-		} else {
-			timeScale = oldTimeScale;
-		}
 		double scalespd = 1.00001;
 		
 		double xtarget = Mouse.getX();
 		double ytarget = Display.getHeight() - Mouse.getY();
 		
 		int mouseWheel = Mouse.getDWheel();
+		
+		double timeScaleSpeed = 2;
+		if (Keyboard.isKeyDown(Keyboard.KEY_ADD)) {
+			timeScale *= Math.pow(timeScaleSpeed, dt);
+		}
+		if (Keyboard.isKeyDown(Keyboard.KEY_SUBTRACT)) {
+			timeScale /= Math.pow(timeScaleSpeed, dt);
+		}
+		
 		if (mouseWheel < 0) {
 			for (int i = 0; i > mouseWheel * 100; i--) {
 				double newScale = scale / scalespd;
@@ -157,7 +168,8 @@ public class Main implements Runnable {
 			dt += (now - lastTime) * renderFPS;
 			lastTime = now;
 			while (dt >= 1) {
-				GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
+				if (paused)
+					GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
 				render();
 				Display.update();
 				dt -= 1.0;
