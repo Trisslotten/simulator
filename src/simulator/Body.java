@@ -1,16 +1,19 @@
 
 package simulator;
 
+import java.util.Random;
+
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.GL11;
 
 public class Body {
 	
+	static Random rand = new Random();
 	public double x, y, xspd, yspd, mass, radius;
 	public double[][] circlePoints;
 	
 	public Body(double x, double y) {
-		this(x, y, 0, 0, 1, 10);
+		this(x, y, 0.0, 0.0, 1000000000000.0, 10000.0);
 	}
 	
 	public Body(double x, double y, double xspd, double yspd, double mass, double radius) {
@@ -57,7 +60,14 @@ public class Body {
 		}
 	}
 	
-	public void setCirclePoints() {
+	public boolean collided(Body b) {
+		double dx = x-b.x;
+		double dy = y-b.y;
+		double distance = Math.sqrt(dx*dx+dy*dy);
+		return radius+b.radius<distance;
+	}
+	
+	private void setCirclePoints() {
 		for (int i = 0; i < circlePoints[0].length; i++) {
 			double length = circlePoints[0].length;
 			double index = i;
@@ -66,6 +76,12 @@ public class Body {
 			circlePoints[0][i] = xdraw;
 			circlePoints[1][i] = ydraw;
 		}
+	}
+
+	public void addspd(double xspd, double yspd) {
+		this.xspd += xspd;
+		this.yspd += yspd;
+		
 	}
 	
 }
