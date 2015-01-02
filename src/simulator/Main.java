@@ -16,11 +16,11 @@ import org.lwjgl.opengl.GL11;
 
 public class Main implements Runnable {
 
-	int n = 50;
+	int n = 100;
 	Body[] bodies = new Body[n];
-	int followID = 0;
+	int followID = -1;
 	int mousex, mousey;
-	double scale = 0.00001, timeScale = 150, oldTimeScale = timeScale;
+	double scale = 0.0001, timeScale = 50, oldTimeScale = timeScale;
 	double xcam = -Display.getWidth() / 2, ycam = -Display.getHeight() / 2;
 	double seconds = 0;
 
@@ -43,11 +43,18 @@ public class Main implements Runnable {
 	protected void update(double dt) {
 		for (int i = 0; i < bodies.length; i++) {
 			for (int j = i + 1; j < bodies.length; j++) {
-				handleGravity(bodies[i], bodies[j]);
+				handleGravity(i, j);
 			}
 		}
-		xcam += bodies[followID].xspd * scale * timeScale;
-		ycam += bodies[followID].yspd * scale * timeScale;
+		for (int i = 0; i < bodies.length; i++) {
+			for (int j = i + 1; j < bodies.length; j++) {
+				handleCollisions(i, j);
+			}
+		}
+		if (followID >= 0) {
+			xcam += bodies[followID].xspd * scale * timeScale;
+			ycam += bodies[followID].yspd * scale * timeScale;
+		}
 
 		for (int i = 0; i < bodies.length; i++) {
 			bodies[i].update(timeScale);
@@ -78,11 +85,10 @@ public class Main implements Runnable {
 		}
 		double scalespd = 1.00001;
 
-		double xtarget = Mouse.getX();
-		double ytarget = Display.getHeight() - Mouse.getY();
-
 		int mouseWheel = Mouse.getDWheel();
 		if (mouseWheel != 0) {
+			double xtarget = Mouse.getX();
+			double ytarget = Display.getHeight() - Mouse.getY();
 			double scrollspd = 2;
 			double newScale = scale;
 			if (mouseWheel < 0) {
@@ -104,25 +110,48 @@ public class Main implements Runnable {
 		mousey = ymouse;
 	}
 
-	private void handleGravity(Body a, Body b) {
-		double dx = a.x - b.x;
-		double dy = a.y - b.y;
+	private void handleCollisions(int a, int b) {
+		double dx = bodies[a].x - bodies[b].x;
+		double dy = bodies[a].y - bodies[b].y;
+		double distance = Math.sqrt(dx * dx + dy * dy);
+		if (distance < bodies[a].radius + bodies[b].radius) {
+			n--;
+			double angle = Math.atan2(dy, dx);
+			double totalmass = bodies[a].mass + bodies[b].mass;
+			double percent = bodies[a].mass / totalmass;
+			bodies[a].xspd = (bodies[a].mass * bodies[a].xspd + bodies[b].mass * bodies[b].xspd) / (bodies[a].mass + bodies[b].mass);
+			bodies[a].yspd = (bodies[a].mass * bodies[a].yspd + bodies[b].mass * bodies[b].yspd) / (bodies[a].mass + bodies[b].mass);
+			bodies[a].x -= dx * percent * Math.cos(angle);
+			bodies[a].y -= dy * percent * Math.sin(angle);
+			bodies[a].mass += bodies[b].mass;
+			double space = Math.pow(bodies[a].radius, 3) * Math.PI * 4.0 / 3.0 + Math.pow(bodies[b].radius, 3) * Math.PI * 4.0 / 3.0;
+			bodies[a].radius = Math.pow(3 * space / (4 * Math.PI), 1.0 / 3.0);
+			Body[] newBodies = new Body[bodies.length - 1];
+			for (int i = 0; i < newBodies.length; i++) {
+				if (i >= b) {
+					newBodies[i] = bodies[i + 1];
+				} else {
+					newBodies[i] = bodies[i];
+				}
+			}
+			bodies = newBodies;
+		}
+	}
+
+	private void handleGravity(int a, int b) {
+		double dx = bodies[a].x - bodies[b].x;
+		double dy = bodies[a].y - bodies[b].y;
 		double distance = Math.sqrt(dx * dx + dy * dy);
 		double angle = Math.atan2(dy, dx);
 		double g = 0.0000000000667384;
-		double force = g * a.mass * b.mass / (distance * distance);
-		if (distance < a.radius + b.radius) {
-			if (a.radius > b.radius) {
-				
-			} else {
+		double force = g * bodies[a].mass * bodies[b].mass / (distance * distance);
 
-			}
-		}
-		a.addspd(-timeScale * Math.cos(angle) * force / a.mass, -timeScale * Math.sin(angle) * force / a.mass);
-		b.addspd(timeScale * Math.cos(angle) * force / b.mass, timeScale * Math.sin(angle) * force / b.mass);
+		bodies[a].addspd(-timeScale * Math.cos(angle) * force / bodies[a].mass, -timeScale * Math.sin(angle) * force / bodies[a].mass);
+		bodies[b].addspd(timeScale * Math.cos(angle) * force / bodies[b].mass, timeScale * Math.sin(angle) * force / bodies[b].mass);
+
 	}
 
-	private double renderFPS = 60.0;
+	private double renderFPS = 120.0;
 	private int width, height;
 	public int updates = 0;
 
