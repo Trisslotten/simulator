@@ -61,13 +61,13 @@ public class Body {
 	}
 	
 	public boolean collided(Body b) {
-		double dx = x-b.x;
-		double dy = y-b.y;
-		double distance = Math.sqrt(dx*dx+dy*dy);
-		return radius+b.radius<distance;
+		double dx = x - b.x;
+		double dy = y - b.y;
+		double distance = Math.sqrt(dx * dx + dy * dy);
+		return radius + b.radius < distance;
 	}
 	
-	private void setCirclePoints() {
+	public void setCirclePoints() {
 		for (int i = 0; i < circlePoints[0].length; i++) {
 			double length = circlePoints[0].length;
 			double index = i;
@@ -77,7 +77,7 @@ public class Body {
 			circlePoints[1][i] = ydraw;
 		}
 	}
-
+	
 	public void addspd(double xspd, double yspd) {
 		this.xspd += xspd;
 		this.yspd += yspd;

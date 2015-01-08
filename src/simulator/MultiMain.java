@@ -4,8 +4,8 @@ package simulator;
 import static org.lwjgl.opengl.GL11.GL_VERSION;
 import static org.lwjgl.opengl.GL11.glGetString;
 
+import java.util.ArrayList;
 import java.util.Random;
-import java.util.Vector;
 
 import org.lwjgl.LWJGLException;
 import org.lwjgl.Sys;
@@ -15,24 +15,17 @@ import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
 import org.lwjgl.opengl.GL11;
 
+import simulator.ComparerThread;
+
 public class MultiMain implements Runnable {
 	
-	int ups = 0;
-	
-	int n = 3;
-	
-	int threadCounter = 0;
-	int threadCounter2 = 0;
-	Thread[] threads = new Thread[n];
-	
-	Body[] bodies = new Body[n];
-	int followID = 0;
+	int n = 5;
+	ArrayList<Body> bodies = new ArrayList<Body>();
+	int followID = -1;
 	int mousex, mousey;
-	double scale = 0.00001, timeScale = 150, oldTimeScale = timeScale;
+	double scale = 0.0001, timeScale = 50, oldTimeScale = timeScale;
 	double xcam = -Display.getWidth() / 2, ycam = -Display.getHeight() / 2;
 	double seconds = 0;
-	
-	Object waiter = new Object();
 	
 	protected void init() {
 		xcam = -Display.getWidth() / 2;
@@ -46,42 +39,40 @@ public class MultiMain implements Runnable {
 			
 			double x = radius * Math.cos(period);
 			double y = radius * Math.sin(period);
-			bodies[i] = new Body(x, y);
+			bodies.add(new Body(x, y));
 		}
-		for (int i = 0; i < n; i++) {
-			final int j = i;
-			threads[i] = new Thread(new Runnable() {
-				
-				public void run() {
-					
-					while (running) {
-						
-						for (int i = 1; i < n; i++) {
-							int k = (j + i) % n;
-							handleGravity(bodies[j], bodies[k]);
-						}
-						
-						bodies[j].update(timeScale);
-						
-						
-						
-					}
-				}
-			});
-			
-			threads[i].start();
+		for (int i = 0; i < bodies.size(); i++) {
+			compareList.add(new ComparerThread(bodies, i, timeScale));
 		}
-		
 	}
 	
+	ArrayList<Thread> compareList = new ArrayList<Thread>();
+	ArrayList<Thread> updateList = new ArrayList<Thread>();
+	
 	protected void update(double dt) {
-		xcam += bodies[followID].xspd * scale * timeScale;
-		ycam += bodies[followID].yspd * scale * timeScale;
+		boolean canHandleCollision = false;
+		
+		
+		
+		for (int i = 0; i < bodies.size(); i++) {
+			for (int j = i + 1; j < bodies.size(); j++) {
+				handleCollisions(i, j);
+			}
+		}
+		
+		if (followID >= 0) {
+			xcam += bodies.get(followID).xspd * scale * timeScale;
+			ycam += bodies.get(followID).yspd * scale * timeScale;
+		}
+		
+		for (int i = 0; i < bodies.size(); i++) {
+			bodies.get(i).update(timeScale);
+		}
 		seconds += timeScale;
 	}
 	
 	protected void render() {
-		double dt = 1.0 / 60.0;
+		double dt = 1.0 / renderFPS;
 		
 		double timeScaleSpeed = 2;
 		if (Keyboard.isKeyDown(Keyboard.KEY_I)) {
@@ -103,12 +94,11 @@ public class MultiMain implements Runnable {
 		}
 		double scalespd = 1.00001;
 		
-		double xtarget = Mouse.getX();
-		double ytarget = Display.getHeight() - Mouse.getY();
-		
 		int mouseWheel = Mouse.getDWheel();
 		if (mouseWheel != 0) {
-			double scrollspd = 2000;
+			double xtarget = Mouse.getX();
+			double ytarget = Display.getHeight() - Mouse.getY();
+			double scrollspd = 20000;
 			double newScale = scale;
 			if (mouseWheel < 0) {
 				newScale = scale / Math.pow(scalespd, Math.abs(mouseWheel * dt * scrollspd));
@@ -129,25 +119,40 @@ public class MultiMain implements Runnable {
 		mousey = ymouse;
 	}
 	
-	private void handleGravity(Body a, Body b) {
-		double dx = a.x - b.x;
-		double dy = a.y - b.y;
+	private void handleCollisions(int a, int b) {
+		double dx = bodies.get(a).x - bodies.get(b).x;
+		double dy = bodies.get(a).y - bodies.get(b).y;
+		double distance = Math.sqrt(dx * dx + dy * dy);
+		if (distance < bodies.get(a).radius + bodies.get(b).radius) {
+			double angle = Math.atan2(dy, dx);
+			double totalmass = bodies.get(a).mass + bodies.get(b).mass;
+			double percent = bodies.get(a).mass / totalmass;
+			bodies.get(a).xspd = (bodies.get(a).mass * bodies.get(a).xspd + bodies.get(b).mass * bodies.get(b).xspd) / (bodies.get(a).mass + bodies.get(b).mass);
+			bodies.get(a).yspd = (bodies.get(a).mass * bodies.get(a).yspd + bodies.get(b).mass * bodies.get(b).yspd) / (bodies.get(a).mass + bodies.get(b).mass);
+			bodies.get(a).x -= dx * percent * Math.cos(angle);
+			bodies.get(a).y -= dy * percent * Math.sin(angle);
+			bodies.get(a).mass += bodies.get(b).mass;
+			double space = Math.pow(bodies.get(a).radius, 3) * Math.PI * 4.0 / 3.0 + Math.pow(bodies.get(b).radius, 3) * Math.PI * 4.0 / 3.0;
+			bodies.get(a).radius = Math.pow(3 * space / (4 * Math.PI), 1.0 / 3.0);
+			bodies.remove(b);
+			n = bodies.size();
+		}
+	}
+	
+	private void handleGravity(int a, int b) {
+		double dx = bodies.get(a).x - bodies.get(b).x;
+		double dy = bodies.get(a).y - bodies.get(b).y;
 		double distance = Math.sqrt(dx * dx + dy * dy);
 		double angle = Math.atan2(dy, dx);
 		double g = 0.0000000000667384;
-		double force = g * a.mass * b.mass / (distance * distance);
-		if (distance < a.radius + b.radius) {
-			if (a.radius > b.radius) {
-				
-			} else {
-				
-			}
-		}
-		a.addspd(-timeScale * Math.cos(angle) * force / a.mass, -timeScale * Math.sin(angle) * force / a.mass);
-		b.addspd(timeScale * Math.cos(angle) * force / b.mass, timeScale * Math.sin(angle) * force / b.mass);
+		double force = g * bodies.get(a).mass * bodies.get(b).mass / (distance * distance);
+		
+		bodies.get(a).addspd(-timeScale * Math.cos(angle) * force / bodies.get(a).mass, -timeScale * Math.sin(angle) * force / bodies.get(a).mass);
+		bodies.get(b).addspd(timeScale * Math.cos(angle) * force / bodies.get(b).mass, timeScale * Math.sin(angle) * force / bodies.get(b).mass);
+		
 	}
 	
-	private double renderFPS = 60.0;
+	private double renderFPS = 144.0;
 	private int width, height;
 	public int updates = 0;
 	
@@ -188,19 +193,10 @@ public class MultiMain implements Runnable {
 			if (getTime() - timer > 1) {
 				timer += 1;
 				double days = seconds / 86400;
-				System.out.println(bodies[0].x);
-				Display.setTitle("updates: " + this.updates + " | ups: " + ups + " | Dayspassed: " + (long) days + " | Timescale: " + timeScale);
-				ups = 0;
+				Display.setTitle("updates: " + this.updates + " | ups: " + updates + " | Dayspassed: " + (long) days + " | Timescale: " + timeScale);
+				updates = 0;
 			}
 			
-		}
-		for (int i = 0; i < n; i++) {
-			try {
-				threads[i].join();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 		}
 		Display.destroy();
 	}
@@ -216,10 +212,6 @@ public class MultiMain implements Runnable {
 	private double nanoTime() {
 		double nanoTime = System.nanoTime();
 		return nanoTime / 1000000000.0;
-	}
-	
-	public static void main(String[] args) {
-		new MultiMain().start();
 	}
 	
 	private void glinit(int width, int height) {
@@ -297,5 +289,9 @@ public class MultiMain implements Runnable {
 	
 	public void stop() {
 		running = false;
+	}
+	
+	public static void main(String[] args) {
+		new MultiMain().start();
 	}
 }
