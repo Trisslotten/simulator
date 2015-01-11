@@ -1,13 +1,11 @@
 
-package simulator;
+package simulator.testing2;
 
 import static org.lwjgl.opengl.GL11.GL_VERSION;
 import static org.lwjgl.opengl.GL11.glGetString;
 
 import java.util.ArrayList;
 import java.util.Random;
-
-import javax.swing.JOptionPane;
 
 import org.lwjgl.LWJGLException;
 import org.lwjgl.Sys;
@@ -17,95 +15,62 @@ import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
 import org.lwjgl.opengl.GL11;
 
-public class Main implements Runnable {
+public class MultiMain implements Runnable {
 	
+	int n = 8;
 	ArrayList<Body> bodies = new ArrayList<Body>();
-	
-	Body cm = new Body(0, 0, 0, 0, 0, 20000);
-	
-	int n = 50;
 	int followID = -1;
 	int mousex, mousey;
-	double scale = 0.0001;
-	double timeScale = 10000;
-	double oldTimeScale = timeScale;
-	double xcam = -Display.getWidth() / 2;
-	double ycam = -Display.getHeight() / 2;
+	double scale = 0.0001, timeScale = 50, oldTimeScale = timeScale;
+	double xcam = -Display.getWidth() / 2, ycam = -Display.getHeight() / 2;
 	double seconds = 0;
 	
-	boolean displayedError = false;
+	Object waiter = new Object();
 	
 	protected void init() {
-		int range = 200000000;
-		
-		String ninput = JOptionPane.showInputDialog("Number of bodies\nDefault: " + n);
-		String timeScaleinput = JOptionPane.showInputDialog("Timescale\nDefault: " + timeScale);
-		String rangeinput = JOptionPane.showInputDialog("Range\nDefault: " + range);
-		
-		
-		
-		if (!ninput.isEmpty()) {
-			n = Integer.parseInt(ninput);
-		}
-		
-		if (!timeScaleinput.isEmpty()) {
-			timeScale = Double.parseDouble(timeScaleinput);
-		}
-		
-		if (!rangeinput.isEmpty()) {
-			range = Integer.parseInt(rangeinput);
-		}
-		
 		xcam = -Display.getWidth() / 2;
 		ycam = -Display.getHeight() / 2;
 		
 		Random rand = new Random();
 		double period = 0;
-		
 		for (int i = 0; i < n; i++) {
 			period += Math.PI / (rand.nextInt(10) + 4);
-			
-			double radius = ((double) rand.nextInt(100000000));
+			double radius = ((double) rand.nextInt(5000000) + 200000.0);
 			
 			double x = radius * Math.cos(period);
 			double y = radius * Math.sin(period);
 			bodies.add(new Body(x, y));
 		}
+		int processors = Runtime.getRuntime().availableProcessors();
 		
-		/*
-		 * double centermass = bodies.get(0).mass, x = bodies.get(0).x, y = bodies.get(0).y; for (int i = 1; i < bodies.size(); i++) { double dx = bodies.get(i).x - x; double dy = bodies.get(i).y - y; double distance = Math.sqrt(dx * dx + dy * dy); double angle = Math.atan2(dy, dx);
-		 * 
-		 * double cmdistance = distance * bodies.get(i).mass / (centermass + bodies.get(i).mass); centermass += bodies.get(i).mass; x += cmdistance * Math.cos(angle); y += cmdistance * Math.sin(angle); }
-		 * 
-		 * System.out.println("Center of mass: (" + x + "," + y + ") -> " + centermass);
-		 */
-		
-		for (int i = 0; i < bodies.size(); i++) {
-			for (int j = i + 1; j < bodies.size(); j++) {
-				double dx = bodies.get(i).x - bodies.get(j).x;
-				double dy = bodies.get(i).y - bodies.get(j).y;
-				double distance = Math.sqrt(dx * dx + dy * dy);
-				double angle = Math.atan2(dy, dx) + Math.PI / 2;
-				double g = 0.0000000000667384;
-				double speed = Math.sqrt(g * (bodies.get(i).mass) / (distance)) / 2;
-				bodies.get(i).xspd += speed * Math.cos(angle);
-				bodies.get(i).yspd += speed * Math.sin(angle);
-				bodies.get(j).xspd -= speed * Math.cos(angle);
-				bodies.get(j).yspd -= speed * Math.sin(angle);
-			}
+		int starti, endi;
+		for (int i = 0; i < processors; i++) {
+			starti = i * bodies.size() / processors;
+			endi = (i + 1) * bodies.size() / processors - 1;
+			compareList.add(new CompareThread(bodies, starti, endi, running, timeScale, waiter));
+			compareList.get(i).start();
 		}
-		bodies.add(new Body(0, 0, 0.0, 0.0, 100000000000000.0, 100000.0));
-		n = bodies.size();
-		
 	}
 	
+	ArrayList<CompareThread> compareList = new ArrayList<CompareThread>();
+	
 	protected void update(double dt) {
-		
-		for (int i = 0; i < bodies.size(); i++) {
-			for (int j = i + 1; j < bodies.size(); j++) {
-				handleGravity(i, j);
+		boolean allIsWaiting = false;
+		while (!allIsWaiting) {
+			allIsWaiting = true;
+			for (CompareThread t : compareList) {
+				System.out.println(t.startindex + "-" + t.endindex + " " + t.isWaiting);
+				if (!t.isWaiting) {
+					allIsWaiting = false;
+				}
 			}
-			bodies.get(i).update(timeScale);
+		}
+		System.out.println("UPDATING");
+		for (CompareThread t : compareList) {
+			t.isWaiting = false;
+		}
+		synchronized (waiter) {
+			waiter.notifyAll();
 		}
 		
 		for (int i = 0; i < bodies.size(); i++) {
@@ -113,64 +78,27 @@ public class Main implements Runnable {
 				handleCollisions(i, j);
 			}
 		}
-		
-		if (followID >= 0) {
-			xcam += bodies.get(followID).xspd * scale * timeScale;
-			ycam += bodies.get(followID).yspd * scale * timeScale;
+		for (int i = 0; i < bodies.size(); i++) {
+			// System.out.println("updating " + i);
+			bodies.get(i).update(timeScale);
 		}
-		
 		seconds += timeScale;
 	}
 	
 	protected void render() {
-		double centermass = bodies.get(0).mass, x = bodies.get(0).x, y = bodies.get(0).y;
-		for (int i = 1; i < bodies.size(); i++) {
-			double dx = bodies.get(i).x - x;
-			double dy = bodies.get(i).y - y;
-			double distance = Math.sqrt(dx * dx + dy * dy);
-			double angle = Math.atan2(dy, dx);
-			
-			double cmdistance = distance * bodies.get(i).mass / (centermass + bodies.get(i).mass);
-			centermass += bodies.get(i).mass;
-			x += cmdistance * Math.cos(angle);
-			y += cmdistance * Math.sin(angle);
-		}
-		cm.x = x;
-		cm.y = y;
-		
 		double dt = 1.0 / renderFPS;
 		
-		double timeScaleSpeed = 1.01;
-		if (Keyboard.isKeyDown(Keyboard.KEY_I)&&!displayedError) {
-			timeScale *= timeScaleSpeed;
+		double timeScaleSpeed = 2;
+		if (Keyboard.isKeyDown(Keyboard.KEY_I)) {
+			timeScale *= Math.pow(timeScaleSpeed, dt);
 		}
 		if (Keyboard.isKeyDown(Keyboard.KEY_O)) {
-			timeScale /= timeScaleSpeed;
-		}
-		if (!displayedError) {
-			for (Body b : bodies) {
-				double speed = Math.sqrt(b.xspd * b.xspd + b.yspd * b.yspd);
-				if (speed * timeScale >= b.radius * 2) {
-					Thread thread = new Thread() {
-						
-						public void run() {
-							JOptionPane.showMessageDialog(null, "Timescale (" + timeScale + ") is too big\nValues over this will make the simulation inaccurate");
-						}
-					};
-					thread.start();
-					
-					displayedError = true;
-					break;
-				}
-			}
+			timeScale /= Math.pow(timeScaleSpeed, dt);
 		}
 		
-		GL11.glColor3d(1, 1, 1);
 		for (Body body : bodies) {
 			body.render((int) xcam, (int) ycam, scale);
 		}
-		GL11.glColor3d(0, 0, 1);
-		cm.render((int) xcam, (int) ycam, scale);
 		
 		int xmouse = Mouse.getX();
 		int ymouse = Display.getHeight() - Mouse.getY();
@@ -211,19 +139,15 @@ public class Main implements Runnable {
 		double distance = Math.sqrt(dx * dx + dy * dy);
 		if (distance < bodies.get(a).radius + bodies.get(b).radius) {
 			double angle = Math.atan2(dy, dx);
-			
+			double totalmass = bodies.get(a).mass + bodies.get(b).mass;
+			double percent = bodies.get(a).mass / totalmass;
 			bodies.get(a).xspd = (bodies.get(a).mass * bodies.get(a).xspd + bodies.get(b).mass * bodies.get(b).xspd) / (bodies.get(a).mass + bodies.get(b).mass);
 			bodies.get(a).yspd = (bodies.get(a).mass * bodies.get(a).yspd + bodies.get(b).mass * bodies.get(b).yspd) / (bodies.get(a).mass + bodies.get(b).mass);
-			
-			double cmdistance = distance * bodies.get(b).mass / (bodies.get(a).mass + bodies.get(b).mass);
-			
-			bodies.get(a).x -= cmdistance * Math.cos(angle);
-			bodies.get(a).y -= cmdistance * Math.sin(angle);
-			
+			bodies.get(a).x -= dx * percent * Math.cos(angle);
+			bodies.get(a).y -= dy * percent * Math.sin(angle);
 			bodies.get(a).mass += bodies.get(b).mass;
 			double space = Math.pow(bodies.get(a).radius, 3) * Math.PI * 4.0 / 3.0 + Math.pow(bodies.get(b).radius, 3) * Math.PI * 4.0 / 3.0;
 			bodies.get(a).radius = Math.pow(3 * space / (4 * Math.PI), 1.0 / 3.0);
-			bodies.get(a).setCirclePoints();
 			bodies.remove(b);
 			n = bodies.size();
 		}
@@ -256,7 +180,6 @@ public class Main implements Runnable {
 		
 		double timer = getTime();
 		int updates = 0;
-		int frames = 0;
 		double delta = getUpdateDelta();
 		double dt = 0;
 		double lastTime = nanoTime();
@@ -276,15 +199,16 @@ public class Main implements Runnable {
 				render();
 				Display.update();
 				dt -= 1.0;
-				frames++;
+				if (Display.wasResized()) {
+					resize();
+				}
 			}
 			
 			if (getTime() - timer > 1) {
 				timer += 1;
 				double days = seconds / 86400;
-				Display.setTitle("updates: " + this.updates + " | ups: " + updates + " | Dayspassed: " + (long) days + " | Timescale: " + timeScale + " | Bodies: " + bodies.size() + " | fps: " + frames);
+				Display.setTitle("updates: " + this.updates + " | ups: " + updates + " | Dayspassed: " + (long) days + " | Timescale: " + timeScale);
 				updates = 0;
-				frames = 0;
 			}
 			
 		}
@@ -302,10 +226,6 @@ public class Main implements Runnable {
 	private double nanoTime() {
 		double nanoTime = System.nanoTime();
 		return nanoTime / 1000000000.0;
-	}
-	
-	public static void main(String[] args) {
-		new Main().start();
 	}
 	
 	private void glinit(int width, int height) {
@@ -383,5 +303,9 @@ public class Main implements Runnable {
 	
 	public void stop() {
 		running = false;
+	}
+	
+	public static void main(String[] args) {
+		new MultiMain().start();
 	}
 }
