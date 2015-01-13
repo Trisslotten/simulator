@@ -17,11 +17,11 @@ import org.lwjgl.opengl.GL11;
 
 public class Main implements Runnable {
 	
-	int n = 200;
+	int n = 500;
 	ArrayList<Body> bodies = new ArrayList<Body>();
-	int followID = -1;
+	int followID = 0;
 	int mousex, mousey;
-	double scale = 0.0001, timeScale = 50, oldTimeScale = timeScale;
+	double scale = 0.0001, timeScale = 10000, oldTimeScale = timeScale;
 	double xcam = -Display.getWidth() / 2, ycam = -Display.getHeight() / 2;
 	double seconds = 0;
 	
@@ -31,13 +31,20 @@ public class Main implements Runnable {
 		
 		Random rand = new Random();
 		double period = 0;
+		
+		bodies.add(new Body(0,0,0,0,Math.pow(1, 29),10000));
+		
 		for (int i = 0; i < n; i++) {
 			period += Math.PI / (rand.nextInt(10) + 4);
-			double radius = ((double) rand.nextInt(5000000) + 200000.0);
+			double radius = ((double) rand.nextInt(1000000) + 1000.0);
 			
 			double x = radius * Math.cos(period);
 			double y = radius * Math.sin(period);
-			bodies.add(new Body(x, y));
+			double velocity = 0.0001;
+			double xspd = velocity*Math.cos(period+Math.PI/4);
+			double yspd = velocity*Math.sin(period+Math.PI/4);
+			
+			bodies.add(new Body(x, y,xspd,yspd,10000000,1000));
 		}
 	}
 	

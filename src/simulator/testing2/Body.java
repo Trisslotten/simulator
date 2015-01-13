@@ -1,5 +1,5 @@
 
-package simulator;
+package simulator.testing2;
 
 import java.util.Random;
 
