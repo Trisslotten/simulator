@@ -39,7 +39,7 @@ public class Body {
 		double xd = xoffset;
 		double yd = yoffset;
 		if (!((x + radius) * scale - xd < 0 || (y + radius) * scale - yd < 0 || (x - radius) * scale - xd > Display.getWidth() || (y - radius) * scale - yd > Display.getHeight())) {
-			GL11.glColor3d(1, 1, 1);
+			//GL11.glColor3d(1, 1, 1);
 			GL11.glBegin(GL11.GL_POLYGON);
 			double sizelimit = 0.75;
 			
