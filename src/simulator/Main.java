@@ -18,11 +18,11 @@ import org.lwjgl.opengl.GL11;
 
 public class Main implements Runnable {
 
-	int n = 50;
+	int n = 300;
 	ArrayList<Body> bodies = new ArrayList<Body>();
-	int followID = -1;
+	int followID = 0;
 	int mousex, mousey;
-	double scale = 0.00001, timeScale = 10000, oldTimeScale = timeScale;
+	double scale = 0.0001, timeScale = 10000, oldTimeScale = timeScale;
 	double xcam = -Display.getWidth() / 2, ycam = -Display.getHeight() / 2;
 	double seconds = 0;
 	Body cm = new Body(0, 0, 0, 0, 0, 20000);
@@ -63,7 +63,7 @@ public class Main implements Runnable {
 		for (int i = 0; i < n; i++) {
 			period += Math.PI / (rand.nextInt(10) + 4);
 
-			double radius = ((double) rand.nextInt(range));
+			double radius = ((double) rand.nextInt(range - 100000) + 100000);
 
 			double x = radius * Math.cos(period);
 			double y = radius * Math.sin(period);
@@ -84,7 +84,7 @@ public class Main implements Runnable {
 		 * System.out.println("Center of mass: (" + x + "," + y + ") -> " +
 		 * centermass);
 		 */
-
+		bodies.add(0, new Body(0, 0, 0.0, 0.0, 100000000000000.0, 100000.0));
 		for (int i = 0; i < bodies.size(); i++) {
 			for (int j = i + 1; j < bodies.size(); j++) {
 				double dx = bodies.get(i).x - bodies.get(j).x;
@@ -92,14 +92,15 @@ public class Main implements Runnable {
 				double distance = Math.sqrt(dx * dx + dy * dy);
 				double angle = Math.atan2(dy, dx) + Math.PI / 2;
 				double g = 0.0000000000667384;
-				double speed = Math.sqrt(g * (bodies.get(i).mass) / (distance))/8;
+				double speed = Math.sqrt(g * (bodies.get(i).mass) / (distance)) * (Math.cos(Math.PI * distance / (distance + range/2)) / 2.0 + 0.5);
 				bodies.get(i).xspd += speed * Math.cos(angle);
 				bodies.get(i).yspd += speed * Math.sin(angle);
 				bodies.get(j).xspd -= speed * Math.cos(angle);
 				bodies.get(j).yspd -= speed * Math.sin(angle);
 			}
 		}
-		//bodies.add(new Body(0, 0, 0.0, 0.0, 100000000000000.0, 100000.0));
+		bodies.get(0).xspd = 0;
+		bodies.get(0).yspd = 0;
 		n = bodies.size();
 
 	}
@@ -115,6 +116,10 @@ public class Main implements Runnable {
 			for (int j = i + 1; j < bodies.size(); j++) {
 				handleCollisions(i, j);
 			}
+		}
+		GL11.glColor3d(1, 1, 1);
+		for (Body body : bodies) {
+			body.render((int) xcam, (int) ycam, scale);
 		}
 		if (followID >= 0) {
 			xcam += bodies.get(followID).xspd * scale * timeScale;
@@ -172,7 +177,7 @@ public class Main implements Runnable {
 			body.render((int) xcam, (int) ycam, scale);
 		}
 		GL11.glColor3d(0, 0, 1);
-		cm.render((int) xcam, (int) ycam, scale);
+		// cm.render((int) xcam, (int) ycam, scale);
 
 		int xmouse = Mouse.getX();
 		int ymouse = Display.getHeight() - Mouse.getY();
@@ -270,9 +275,10 @@ public class Main implements Runnable {
 			dt += (now - lastTime) * renderFPS;
 			lastTime = now;
 			while (dt >= 1) {
-				GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
+
 				render();
 				Display.update();
+				GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
 				dt -= 1.0;
 				if (Display.wasResized()) {
 					resize();
@@ -282,7 +288,7 @@ public class Main implements Runnable {
 			if (getTime() - timer > 1) {
 				timer += 1;
 				double days = seconds / 86400;
-				Display.setTitle("updates: " + this.updates + " | ups: " + updates + " | Dayspassed: " + (long) days + " | Timescale: " + timeScale + " | Bodies: " + bodies.size());
+				Display.setTitle("updates: " + this.updates + " | ups: " + updates + " | Dayspassed: " + (long) days + " | Timescale: " + (long)timeScale + " | Bodies: " + bodies.size());
 				updates = 0;
 			}
 
