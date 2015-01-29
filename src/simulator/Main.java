@@ -18,7 +18,7 @@ import org.lwjgl.opengl.GL11;
 
 public class Main implements Runnable {
 
-	int n = 300;
+	int n = 400;
 	ArrayList<Body> bodies = new ArrayList<Body>();
 	int followID = 0;
 	int mousex, mousey;
@@ -30,7 +30,7 @@ public class Main implements Runnable {
 
 	protected void init() {
 
-		int range = 20000000;
+		int range = 10000000;
 
 		String ninput = JOptionPane.showInputDialog("Number of bodies\nDefault: " + n);
 		String timeScaleinput = JOptionPane.showInputDialog("Timescale\nDefault: " + timeScale);
@@ -92,7 +92,9 @@ public class Main implements Runnable {
 				double distance = Math.sqrt(dx * dx + dy * dy);
 				double angle = Math.atan2(dy, dx) + Math.PI / 2;
 				double g = 0.0000000000667384;
-				double speed = Math.sqrt(g * (bodies.get(i).mass) / (distance)) * (Math.cos(Math.PI * distance / (distance + range/2)) / 2.0 + 0.5);
+				double speed = Math.sqrt(g * (bodies.get(i).mass) / (distance)) * (Math.cos(Math.PI * distance / (distance + range / 2)) / 2.0 + 0.5);
+				double deviation = rand.nextDouble() * Math.PI / 2;
+				angle += (rand.nextBoolean() ? deviation : -deviation);
 				bodies.get(i).xspd += speed * Math.cos(angle);
 				bodies.get(i).yspd += speed * Math.sin(angle);
 				bodies.get(j).xspd -= speed * Math.cos(angle);
@@ -176,6 +178,8 @@ public class Main implements Runnable {
 		for (Body body : bodies) {
 			body.render((int) xcam, (int) ycam, scale);
 		}
+
+		GUI.render(xcam, ycam, scale, cm.x, cm.y);
 		GL11.glColor3d(0, 0, 1);
 		// cm.render((int) xcam, (int) ycam, scale);
 
@@ -288,7 +292,8 @@ public class Main implements Runnable {
 			if (getTime() - timer > 1) {
 				timer += 1;
 				double days = seconds / 86400;
-				Display.setTitle("updates: " + this.updates + " | ups: " + updates + " | Dayspassed: " + (long) days + " | Timescale: " + (long)timeScale + " | Bodies: " + bodies.size());
+				double years = days / 365;
+				Display.setTitle("updates: " + this.updates + " | ups: " + updates + " | Days: " + (long) days + " | Years: " + (long) years + " | Timescale: " + (long) timeScale + " | Bodies: " + bodies.size());
 				updates = 0;
 			}
 
