@@ -15,7 +15,11 @@ public class Body {
 	public boolean hasCompared = false;
 	
 	public Body(double x, double y) {
-		this(x, y, 0.0, 0.0, 10000000000.0, 10000.0);
+		this(x,y,0,0);
+	}
+	
+	public Body(double x,double y, double xspd, double yspd) {
+		this(x, y, xspd, yspd, 2.59*Math.pow(10, 20), 10000000);
 	}
 	
 	public Body(double x, double y, double xspd, double yspd, double mass, double radius) {

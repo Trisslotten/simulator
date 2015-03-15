@@ -6,10 +6,16 @@ import org.lwjgl.opengl.GL11;
 public class GUI {
 
 	public static void render(double xoffset, double yoffset, double scale, double xcenter, double ycenter) {
-		double width = 5;
+		double width = 3;
+		double height = 10;
+		double au = 149597870700.0;
+		double auinpixels = scale*au;
+		double ausonscreen = Display.getWidth()/auinpixels;
+		for(int i=0;i<ausonscreen;i++) {
+			
+		}
 		
-		drawRekt(0, 0, Display.getWidth(), width);
-
+		
 	}
 
 	public static void drawRekt(double x, double y, double x2, double y2) {
@@ -24,3 +30,4 @@ public class GUI {
 	}
 
 }
+

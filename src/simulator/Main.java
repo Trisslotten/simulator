@@ -18,11 +18,11 @@ import org.lwjgl.opengl.GL11;
 
 public class Main implements Runnable {
 
-	int n = 400;
+	int n = 200;
 	ArrayList<Body> bodies = new ArrayList<Body>();
 	int followID = 0;
 	int mousex, mousey;
-	double scale = 0.0001, timeScale = 10000, oldTimeScale = timeScale;
+	double scale = 0.00000001, timeScale = 1, oldTimeScale = timeScale;
 	double xcam = -Display.getWidth() / 2, ycam = -Display.getHeight() / 2;
 	double seconds = 0;
 	Body cm = new Body(0, 0, 0, 0, 0, 20000);
@@ -30,11 +30,11 @@ public class Main implements Runnable {
 
 	protected void init() {
 
-		int range = 10000000;
+		int rangeMm = (int) (149597870700.0 / 10000000.0);
 
 		String ninput = JOptionPane.showInputDialog("Number of bodies\nDefault: " + n);
 		String timeScaleinput = JOptionPane.showInputDialog("Timescale\nDefault: " + timeScale);
-		String rangeinput = JOptionPane.showInputDialog("Range\nDefault: " + range);
+		String rangeinput = JOptionPane.showInputDialog("Range (Mm)\nDefault: " + rangeMm);
 
 		if (ninput != null) {
 			if (!ninput.isEmpty()) {
@@ -50,7 +50,7 @@ public class Main implements Runnable {
 
 		if (rangeinput != null) {
 			if (!rangeinput.isEmpty()) {
-				range = Integer.parseInt(rangeinput);
+				rangeMm = Integer.parseInt(rangeinput);
 			}
 		}
 
@@ -63,28 +63,13 @@ public class Main implements Runnable {
 		for (int i = 0; i < n; i++) {
 			period += Math.PI / (rand.nextInt(10) + 4);
 
-			double radius = ((double) rand.nextInt(range - 100000) + 100000);
+			double radius = (1000000.0 * (double) rand.nextInt(rangeMm) + 100000);
 
 			double x = radius * Math.cos(period);
 			double y = radius * Math.sin(period);
 			bodies.add(new Body(x, y));
 		}
-
-		/*
-		 * double centermass = bodies.get(0).mass, x = bodies.get(0).x, y =
-		 * bodies.get(0).y; for (int i = 1; i < bodies.size(); i++) { double dx
-		 * = bodies.get(i).x - x; double dy = bodies.get(i).y - y; double
-		 * distance = Math.sqrt(dx * dx + dy * dy); double angle =
-		 * Math.atan2(dy, dx);
-		 * 
-		 * double cmdistance = distance * bodies.get(i).mass / (centermass +
-		 * bodies.get(i).mass); centermass += bodies.get(i).mass; x +=
-		 * cmdistance * Math.cos(angle); y += cmdistance * Math.sin(angle); }
-		 * 
-		 * System.out.println("Center of mass: (" + x + "," + y + ") -> " +
-		 * centermass);
-		 */
-		bodies.add(0, new Body(0, 0, 0.0, 0.0, 100000000000000.0, 100000.0));
+		bodies.add(0, new Body(0, 0, 0.0, 0.0, 1.988 * Math.pow(10, 30), 696342000.0));
 		for (int i = 0; i < bodies.size(); i++) {
 			for (int j = i + 1; j < bodies.size(); j++) {
 				double dx = bodies.get(i).x - bodies.get(j).x;
@@ -92,9 +77,23 @@ public class Main implements Runnable {
 				double distance = Math.sqrt(dx * dx + dy * dy);
 				double angle = Math.atan2(dy, dx) + Math.PI / 2;
 				double g = 0.0000000000667384;
-				double speed = Math.sqrt(g * (bodies.get(i).mass) / (distance)) * (Math.cos(Math.PI * distance / (distance + range / 2)) / 2.0 + 0.5);
-				double deviation = rand.nextDouble() * Math.PI / 2;
+				double speed = Math.sqrt(g * (bodies.get(i).mass) / (distance));
+				// *
+				// (Math.cos(Math.PI
+				// *
+				// distance
+				// /
+				// (distance
+				// +
+				// 1000000000000.0))
+				// /
+				// 2.0
+				// +
+				// 0.5);
+				double deviation = rand.nextDouble() * Math.PI / 3;
 				angle += (rand.nextBoolean() ? deviation : -deviation);
+				double extraMass = Math.pow(rand.nextInt(10), Math.pow(1 + rand.nextDouble(), rand.nextInt(4) + 1));
+				bodies.get(i).mass += extraMass;
 				bodies.get(i).xspd += speed * Math.cos(angle);
 				bodies.get(i).yspd += speed * Math.sin(angle);
 				bodies.get(j).xspd -= speed * Math.cos(angle);
@@ -104,7 +103,7 @@ public class Main implements Runnable {
 		bodies.get(0).xspd = 0;
 		bodies.get(0).yspd = 0;
 		n = bodies.size();
-
+		bodies.add(new Body(149597870700.0, 0, 0.0, 0.0, 100000000000000.0, 100000.0));
 	}
 
 	protected void update(double dt) {
@@ -149,7 +148,7 @@ public class Main implements Runnable {
 		double dt = 1.0 / renderFPS;
 		double timeScaleSpeed = 1.01;
 
-		if (Keyboard.isKeyDown(Keyboard.KEY_I) && !displayedError) {
+		if (Keyboard.isKeyDown(Keyboard.KEY_I)) {
 			timeScale *= timeScaleSpeed;
 		}
 		if (Keyboard.isKeyDown(Keyboard.KEY_O)) {
@@ -158,12 +157,13 @@ public class Main implements Runnable {
 		}
 		if (!displayedError) {
 			for (Body b : bodies) {
-				double speed = Math.sqrt(b.xspd * b.xspd + b.yspd * b.yspd);
-				if (speed * timeScale >= b.radius * 2) {
+				final double speed = Math.sqrt(b.xspd * b.xspd + b.yspd * b.yspd);
+				if (speed * timeScale > b.radius * 2) {
+					final double radius = b.radius;
 					Thread thread = new Thread() {
 
 						public void run() {
-							JOptionPane.showMessageDialog(null, "Timescale (" + timeScale + ") is too big\nValues over this will make the simulation inaccurate");
+							JOptionPane.showMessageDialog(null, "Timescale (" + timeScale + ") is too big\nValues over this will make the simulation inaccurate\nSpeed: " + speed + "\nRatio: " + speed * timeScale / (radius * 2));
 						}
 					};
 					thread.start();
@@ -293,12 +293,78 @@ public class Main implements Runnable {
 				timer += 1;
 				double days = seconds / 86400;
 				double years = days / 365;
-				Display.setTitle("updates: " + this.updates + " | ups: " + updates + " | Days: " + (long) days + " | Years: " + (long) years + " | Timescale: " + (long) timeScale + " | Bodies: " + bodies.size());
+				Body b = bodies.get(0);
+				double speed = Math.sqrt(b.xspd * b.xspd + b.yspd * b.yspd);
+				double radius = b.radius;
+				double ratio = speed * timeScale / (radius * 2);
+				double averageRatio = 0;
+				double[] medianFinder = new double[bodies.size()];
+				int i = 0;
+				for (Body a : bodies) {
+					speed = Math.sqrt(a.xspd * a.xspd + a.yspd * a.yspd);
+					double newRatio = speed * timeScale / (a.radius * 2);
+					medianFinder[i++] = newRatio;
+					averageRatio += newRatio;
+					if (newRatio > ratio) {
+						ratio = newRatio;
+					}
+				}
+				Quicksort sorter = new Quicksort();
+				sorter.sort(medianFinder);
+				double median = medianFinder[bodies.size() / 2];
+				averageRatio /= bodies.size();
+				Display.setTitle("updates: " + this.updates + " | ups: " + updates + " | Days: " + (long) days + " | Years: " + (long) years + " | Timescale: " + (long) timeScale + " | Bodies: " + bodies.size() + " | Longest jump: " + Math.round(ratio) + " | Average jump: " + Math.round(averageRatio) + " | median jump: " + Math.round(median));
 				updates = 0;
 			}
 
 		}
 		Display.destroy();
+	}
+
+	private ArrayList<Double> sort(ArrayList<Double> list) {
+		return null;
+	}
+
+	private class Quicksort {
+		private double[] numbers;
+		private int number;
+
+		public void sort(double[] values) {
+			this.numbers = values;
+			number = values.length;
+			quicksort(0, number - 1);
+
+		}
+
+		private void quicksort(int low, int high) {
+			int i = low, j = high;
+			double pivot = numbers[low + (high - low) / 2];
+			while (i <= j) {
+				while (numbers[i] < pivot) {
+					i++;
+				}
+				while (numbers[j] > pivot) {
+					j--;
+				}
+				if (i <= j) {
+					exchange(i, j);
+					i++;
+					j--;
+				}
+			}
+			if (low < j)
+				quicksort(low, j);
+			if (i < high)
+				quicksort(i, high);
+
+		}
+
+		private void exchange(int i, int j) {
+			double temp = numbers[i];
+			numbers[i] = numbers[j];
+			numbers[j] = temp;
+		}
+
 	}
 
 	protected void resize() {
